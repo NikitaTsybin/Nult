@@ -6,6 +6,7 @@ import math
 from math import cos, sqrt, acos, floor
 
 Tmax = 500
+d = 12/1000
 fi1 = 0.62
 fi2 = 0.5
 lmbd = (1.2 - 0.00035*450)
@@ -53,8 +54,8 @@ def take_nearest(num,arr):
 
 #Функция линейной интерполяции d = [[x1, y1], [x2, y2]]
 #Возвращает значение линейной интерполяции y при x
-def l_interp(d, x):
-    rez = d[0][1] + (x - d[0][0]) * ((d[1][1] - d[0][1])/(d[1][0] - d[0][0]))
+def l_interp(d1, x):
+    rez = d1[0][1] + (x - d1[0][0]) * ((d1[1][1] - d1[0][1])/(d1[1][0] - d1[0][0]))
     return(rez)
 
 #Функция строит линейную интерполяцию по массиву
@@ -64,8 +65,8 @@ def l_interp_list (x, x_arr, y_arr):
     y2 = y_arr[rng[0][1]]
     x1 = rng[1][0]
     x2 = rng[1][1]
-    d = [[x1, y1], [x2, y2]]
-    y = l_interp(d, x)
+    d1 = [[x1, y1], [x2, y2]]
+    y = l_interp(d1, x)
     return y
 
 arr_T1 = [0, 20, 200, 300, 400, 500, 600, 700, 800, 900, 950, 1500] #Массив температур бетона
