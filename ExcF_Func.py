@@ -5,7 +5,6 @@ import numpy as np
 import math
 from math import cos, sqrt, acos, floor
 
-d = 12
 Tmax = 500
 fi1 = 0.62
 fi2 = 0.5
@@ -225,7 +224,7 @@ def plot_T(h,tau):
 def solve_NF (b, h, L, a, mu, kdl, As, Asc, Eb0, Es, xi_R, Rsn, Rsc, Rbn, tau, d):
     et = 0
     ac = a #Привязка сжатой арматуры, см
-    L0 = L*mu #Расчетная длина
+    L0 = L*mu #Расчетная длина в см
     gz = 9.80665 #Ускорение свободного падения
     gz = 10 #Ускорение свободного падения
     pi = 3.1415927 #Число Пи
@@ -243,6 +242,7 @@ def solve_NF (b, h, L, a, mu, kdl, As, Asc, Eb0, Es, xi_R, Rsn, Rsc, Rbn, tau, d
     epsb2 = 0.0035
     xi_R = 0.8 / (1 + epssel / epsb2)
     Tb0 = Tb((h/2)/100, tau)
+    print('xir=',xi_R)
     gammabt(Tb0)
     Rbnt = Rbn*1
     Ebt = Eb0*betabt(Tb0)
@@ -298,6 +298,7 @@ def solve_NF (b, h, L, a, mu, kdl, As, Asc, Eb0, Es, xi_R, Rsn, Rsc, Rbn, tau, d
     xmax = max(x1, x2, x3)
 ##    print(xmin,xmid,xmax)
     N = xmid
+    print('N=',round(N/gz*100*100))
     if N<0:
         N = xmax
     check_xi = (N + F1)/(F2 * (h0-at))
