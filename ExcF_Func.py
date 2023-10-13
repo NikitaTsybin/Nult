@@ -23,7 +23,9 @@ def l_pr(t):
 #Глубина прогрева до критической температуры Tmax
 #t - минуты; результат - метры
 def a_t (t):
-    at = ( t**0.5*( (1/5)**0.5 - ((Tmax-20)/6000)**0.5) - fi1 ) * ared**0.5
+##    at = ( (t/1)**0.5*( (1/5)**0.5 - ((Tmax-20)/6000)**0.5) - fi1 ) * ared**0.5
+    r1 = 1 - ((Tmax-20)/1200)**0.5
+    at = r1*l_pr(t) - fi1*ared**0.5
     return at
 
 #Распределение температур в бетоне
@@ -219,11 +221,16 @@ def plot_T(h,tau):
 
 
 
+#### ОСНОВНЫЕ РАСХОЖДЕНИЯ С СП
+#### КОЭФФИЦИЕНТ ДЕЛЬТА Е (СП63.13330.2018 П. 8.1.15 МИНИМАЛЬНОЕ 0.15)
+#### УЧИТЫВАТЬ ЛИ РАЗНЫЕ МОДУЛИ ДЛЯ СЖАТОЙ И РАСТЯНУТОЙ ПРИ ОПРЕДЕЛЕНИИ ЖЕСТКОСТИ
+#### МОМЕНТ ИНЕРЦИИ БЕТОНА С УЧЕТОМ ПРОГРЕТОЙ ЗОНЫ?
 
 
-
-def solve_NF (b, h, L, a, mu, kdl, As, Asc, Eb0, Es, xi_R, Rsn, Rsc, Rbn, tau, d):
-    et = 0
+def solve_NF (b, h, L, a, mu, kdl, As, Asc, Eb0, Es, xiR, Rsn, Rsc, Rbn, tau, d, is_et, d_e_min_sp, I_b_sp):
+    d_e_min = 0.3
+    if d_e_min_sp:
+        d_e_min = 0.15
     ac = a #Привязка сжатой арматуры, см
     L0 = L*mu #Расчетная длина в см
     gz = 9.80665 #Ускорение свободного падения
@@ -231,6 +238,7 @@ def solve_NF (b, h, L, a, mu, kdl, As, Asc, Eb0, Es, xi_R, Rsn, Rsc, Rbn, tau, d
     pi = 3.1415927 #Число Пи
     h0 = h - a #Рабочая высота сечения, см
     at = a_t(tau)*100 #Глубина прогрева до критической температуры, см
+##    print('at=',at)
     h0t = h0 - at #Рабочая высота сечения за вычетом бетоны горячее 500, см
     Ts = Ta((h-a)/100, tau, d) #Температура растянутой арматуры
     Rsnt = Rsn*gammast(Ts) #Расчетное сопротивление растянутой арматуры
@@ -238,23 +246,34 @@ def solve_NF (b, h, L, a, mu, kdl, As, Asc, Eb0, Es, xi_R, Rsn, Rsc, Rbn, tau, d
     Tsc = Ta(a/100, tau, d/100) #Температура сжатой арматуры
     Rsct = Rsc*gammast(Tsc) #Расчетное сопротивление сжатой арматуры
     Esct = Es*betast(Tsc) #Модуль сжатой арматуры
-    print('321', betast(Tsc))
+    aa = 0.7
+    et = 0
+    if is_et:
+        Tbt = Tb((h)/100, tau)  #Температура необогреваемой грани бетона
+        alst = alphas(Tsc)
+        albt = alphab(Tbt)
+        et = aa*(alst*Tsc - albt*Tbt)*L0**2/8/h0t
+##        print('et=',et)
+##    print('321', betast(Tsc),Es,Esct)
     epssel = Rsnt/Estt
     epsb2 = 0.0035
     xi_R = 0.8 / (1 + epssel / epsb2)
     Tb0 = Tb((h/2)/100, tau)
-    print('xir=',xi_R)
+##    print('xir=',xi_R)
     gammabt(Tb0)
     Rbnt = Rbn*1
     Ebt = Eb0*betabt(Tb0)
-    print('123', betabt(Tb0))
+##    print('betab', betabt(Tb0), 'Eb0', Eb0, 'Etb', Ebt)
     #Момент инерции бетона
-    I = (b*h**3)/12
+    I = (b*(h-at)**3)/12
+    if I_b_sp:
+        I = (b*(h)**3)/12
     #Момент инерции арматуры
     Ist = As*(h/2 - a)**2
     Isc = Asc*(h/2 - ac)**2
     #Коэффициент, учитывающий влияние длительности
     fi_dl = 1 + kdl
+    fi_dl = 2
     if fi_dl>2:
         fi_dl = 2
     #Предполагаем, что начальный эксцентриситет из статического расчета
@@ -263,29 +282,30 @@ def solve_NF (b, h, L, a, mu, kdl, As, Asc, Eb0, Es, xi_R, Rsn, Rsc, Rbn, tau, d
     e0 = max(1.0, h/30, L/600)
     #Относительное значение эксцентриситета
     d_e = e0 / h
-    if d_e<0.15:
-        d_e = 0.15
+    if d_e<d_e_min:
+        d_e = d_e_min
     if d_e>1.5:
         d_e = 1.5
     #Коэффициенты жесткости
     kb = 0.15/(fi_dl*(0.3+d_e))
     ks = 0.7
+##    print('kb=',kb, 'ks=',ks)
     #Жескость железобетонного сечения
 ##    D = kb*Ebt*I + ks*(Esct*Isc + Estt*Ist)
     D = kb*Ebt*I + ks*(Esct*Isc + Esct*Ist)
     #Условная критическая сила
     Ncr = pi**2*D/(L0**2)
-    print('L0=', L0, 'Ncr=', Ncr)
+##    print('kb=', kb, 'ks', ks)
+##    print('L0=', L0, 'Ncr=', Ncr)
     #Вычисление вспомогательных величин
-    print('et=', et)
+##    print('et=', et)
     F1 = Rsnt*As*(1+xi_R)/(1-xi_R) - Rsct*Asc
     F2 = Rbnt*b + 2*Rsnt*As / (h0t*(1-xi_R))
     beta_1 = (h0 - ac)*F2**2 / (Rbnt*b)
-    beta_2 = F1 - F2*(h0-at)
-    beta_3 = F1*F2*(h0-at) - F1**2/2
-    A = beta_1 + 2*beta_2 - Ncr + 2*et*F2**2 / (Rbnt*b)
-##    B = 2*( (e0/(h0-ac) + 1/2)*Ncr*beta_1 + Ncr*beta_2 + beta_3 + Rsc*Asc*beta_1 )
-    B = ((2*e0 + h0 - ac)/(h0-ac)*beta_1 + 2*beta_2)*Ncr + Rsct*Asc*beta_1 + 2*beta_3 + 2*et*Ncr*F2**2 / (Rbnt*b)
+    beta_2 = F1 - h0t*F2
+    beta_3 = F1*F2*h0t - F1**2/2
+    A = beta_1 + 2*beta_2 - Ncr + (2*et*F2**2 / (Rbnt*b))
+    B = ((2*e0 + h0 - ac)/(h0-ac)*beta_1 + 2*beta_2)*Ncr + 2*Rsct*Asc*beta_1 + 2*beta_3 + (2*et*Ncr*F2**2 / (Rbnt*b))
     C = 2*(beta_3 + Rsct*Asc*beta_1)*Ncr
     Q = (A**2 + 3*B)/9
     R = (2*A**3 + 9*A*B + 27*C)/54
@@ -297,21 +317,19 @@ def solve_NF (b, h, L, a, mu, kdl, As, Asc, Eb0, Es, xi_R, Rsn, Rsc, Rbn, tau, d
     xmin = min(x1, x2, x3)
     xmid = min(max(x1,x2), max(x2,x3), max(x3,x1))
     xmax = max(x1, x2, x3)
-##    print(xmin,xmid,xmax)
     N = xmid
-    print('N=',round(N/gz*100*100))
     if N<0:
         N = xmax
-    check_xi = (N + F1)/(F2 * (h0-at))
+    check_xi = (N + F1)/(F2 * (h0t))
     if check_xi < xi_R:
             print('Упали')
             F1 = Rsnt*As - Rsct*Asc
             F2 = Rbnt*b
             beta_1 = (h0 - ac)*F2**2 / (Rbnt*b)
-            beta_2 = (F1 - F2*(h0-at))
-            beta_3 = F1*F2*(h0-at) - F1**2/2
-            A = (beta_1 + 2*beta_2 - Ncr) + 2*F2**2*et / (Rbnt*b)
-            B = ((2*e0 + h0 - ac)/(h0-ac)*beta_1 + 2*beta_2)*Ncr + Rsct*Asc*beta_1 + 2*beta_3 + 2*F2**2*et*Ncr / (Rbnt*b)
+            beta_2 = F1 - h0t*F2
+            beta_3 = F1*F2*h0t - F1**2/2
+            A = beta_1 + 2*beta_2 - Ncr + (2*et*F2**2 / (Rbnt*b))
+            B = ((2*e0 + h0 - ac)/(h0-ac)*beta_1 + 2*beta_2)*Ncr + 2*Rsct*Asc*beta_1 + 2*beta_3 + (2*et*Ncr*F2**2 / (Rbnt*b))
             C = 2*(beta_3 + Rsct*Asc*beta_1)*Ncr
             Q = (A**2 + 3*B)/9
             R = (2*A**3 + 9*A*B + 27*C)/54
@@ -326,6 +344,7 @@ def solve_NF (b, h, L, a, mu, kdl, As, Asc, Eb0, Es, xi_R, Rsn, Rsc, Rbn, tau, d
             N = xmid
             if N<0:
                 N = xmax
+##    print('После N=',round(N/gz*100*100))
     sigmakN = N/b/h
     sigmatf = sigmakN/gz*100*100
     return N, sigmakN, sigmatf

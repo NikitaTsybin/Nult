@@ -11,7 +11,7 @@ from ExcF_Func import *
 #Данные по умолчанию
 pi = 3.1415927 #Число Пи
 gz = 9.80665 #Ускорение свободного падения
-gz = 10 #Ускорение свободного падения
+gz1 = 10 #Ускорение свободного падения
 coeff_b_init = 0.85 #Понижающий коэффициент к прочности бетона
 b_init = 100 #Начальная ширина сечения
 h_init = 25 #Начальная высота сечения
@@ -21,7 +21,7 @@ tau_init = 150 #Время пожара
 epsb2 = 3.5*10**(-3) #Предельные деформации бетона
 Es = 2*10**5 #Модуль упругости стали
 #Строка с армированием
-Reinf_string_list = 's200d6, s200d8, s200d12, s200d16, s200d20, s200d25'
+Reinf_string_list = '28/100 25/100 20/100 16/100 20/200 16/200 12/200 10/200 6/200'
 #Строка с длинами
 Len_string_list = '1000, 2500, 3000, 3500, 4000, 4500, 5000, 5500'
 a_init = 50
@@ -60,7 +60,7 @@ with col7: tau = st.number_input(label='$t$, мин', step=10, format="%i", valu
 with col8: kdl = st.number_input(label="Длит./Крат.", step=0.01, format="%.2f", value=kdl_init, min_value=0.099, max_value=1.0)
 
 Rbc = cur_concrete['Rb']*coeff_b
-Rbn = cur_concrete['Rbn']*coeff_b
+Rbn = cur_concrete['Rbn']
 Eb0 = cur_concrete['Eb0']
 Rs = cur_reinf['Rs']
 Rsn = cur_reinf['Rsn']
@@ -70,7 +70,7 @@ xiR = 0.8 / (1 + epssel / epsb2)
 
 st.subheader('Варианты расчета')
 Reinf_string = st.text_input('Варианты армирования у ОДНОЙ грани. Разделители: запятая или пробел', value = Reinf_string_list)
-Reinf_string_temp = re.split(';|,| ', Reinf_string)
+Reinf_string_temp = re.split(';|,| |\t', Reinf_string)    
 Reinf_string_list = []
 for i in Reinf_string_temp:
     try:
@@ -87,7 +87,7 @@ Reinf_data = pd.DataFrame(Reinf_data)
 ##st.data_editor(Reinf_data)
 
 Len_string = st.text_input('Рассматриваемые длины в мм. Разделители: запятая или пробел', value = Len_string_list)
-Len_data_temp = re.split(';|,| ', Len_string)
+Len_data_temp = re.split(';|,| |\t', Len_string)
 Len_data = []
 for i in Len_data_temp:
     try: Len_data.append(int(i))
@@ -119,8 +119,44 @@ for i in range(len(Len_data)):
 
 
 with st.expander('Результаты расчета по прочности'):
-    st.subheader('Допустимое вертикальное напряжение, тс/м$^2$')
+    st.subheader('Стена t=' + str(h*10) + 'мм из ' + concrete + '. Расчет по прочности')
+    st.subheader('Допустимое вертикальное НАПРЯЖЕНИЕ, тс/м$^2$')
     st.dataframe(pd.DataFrame(rez), hide_index=True, column_config=col_conf)
+
+##st.write(str(solve_NF(b, h, 300, a/10, mu, kdl, 15, 15, Eb0/10, Es/10, xiR, Rsn/10, Rsc/10, Rbn/10, tau, 12/10)))
+
+
+with st.expander('Результаты расчета огнестойкости'):
+    is_et = st.toggle('Учесть температурный эксцентриситет')
+    d_e_min_sp = st.toggle('Мин. относительный эксценриситет по СП 63')
+    I_b_sp = st.toggle('Учитывать перегретый бетон в жесткости')
+    rez1 = []
+    for i in range(len(Reinf_data)):
+        cur_As1 = Reinf_data['area_1'][i]
+        rez1_row = []
+        rez1_row.append(str(Reinf_data['mu'][i])+'%')
+        rez1_row.append(Reinf_data['area_1'][i])
+        rez1_row.append(Reinf_data['string'][i])
+        for j in range(len(Len_data)):
+            cur_L1 = Len_data[j]
+            tmp1 = solve_NF(b, h, cur_L1/10, a/10, mu, kdl, cur_As1, cur_As1, Eb0/10, Es/10, xiR, Rsn/10, Rsc/10, Rbn/10, tau, d/10, is_et, d_e_min_sp, I_b_sp)[2]
+            rez1_row.append(str(-math.floor(tmp1/10)*10))
+        rez1.append(rez1_row)
+
+    col_conf = {'0': st.column_config.TextColumn(label='%', disabled=True, help='Процент армирования (суммарный у двух граней)'),
+                '1': st.column_config.TextColumn(label='см2', disabled=True, help='Площадь арматуры у ОДНОЙ грани'),
+                '2': st.column_config.TextColumn(label='As', disabled=True, help='Текстовое описание армирования у ОДНОЙ грани')}
+
+    for i in range(len(Len_data)):
+        col_conf.update({str(i+3): st.column_config.TextColumn(
+            label='L='+str(Len_data[i]), disabled=True, help='Эксцентриситет e=' + str(round(max(1.0, h/30, Len_data[i]/10/600),2))+'см')})
+    
+
+    st.subheader('Стена t=' + str(h*10) + 'мм из ' + concrete + '. Огнестойкость ' + str(tau) + ' мин')
+    st.subheader('Допустимое вертикальное НАПРЯЖЕНИЕ, тс/м$^2$')
+    st.dataframe(pd.DataFrame(rez1), hide_index=True, column_config=col_conf)
+
+
 
 with st.expander('Справочная информация по огнестойкости'):
     col1, col2 = st.columns([1, 1])
@@ -170,29 +206,4 @@ with st.expander('Справочная информация по огнесто�
     st.plotly_chart(fig, use_container_width=True)
     st.write('Температура со стороны нагрева: ' + str(round(Ta(a/1000, tau, 28/1000))) + '   ' + str(round(Tb(a/1000, tau))))
 
-##st.write(str(solve_NF(b, h, 300, a/10, mu, kdl, 15, 15, Eb0/10, Es/10, xiR, Rsn/10, Rsc/10, Rbn/10, tau, 12/10)))
 
-rez1 = []
-for i in range(len(Reinf_data)):
-    cur_As1 = Reinf_data['area_1'][i]
-    rez1_row = []
-    rez1_row.append(str(Reinf_data['mu'][i])+'%')
-    rez1_row.append(Reinf_data['area_1'][i])
-    rez1_row.append(Reinf_data['string'][i])
-    for j in range(len(Len_data)):
-        cur_L1 = Len_data[j]
-        tmp1 = solve_NF(b, h, cur_L1/10, a/10, mu, kdl, cur_As1, cur_As1, Eb0/10, Es/10, xiR, Rsn/10, Rsc/10, Rbn/10, tau, d/10)[2]
-        rez1_row.append(str(-math.floor(tmp1/10)*10))
-    rez1.append(rez1_row)
-
-col_conf = {'0': st.column_config.TextColumn(label='%', disabled=True, help='Процент армирования (суммарный у двух граней)'),
-            '1': st.column_config.TextColumn(label='см2', disabled=True, help='Площадь арматуры у ОДНОЙ грани'),
-            '2': st.column_config.TextColumn(label='As', disabled=True, help='Текстовое описание армирования у ОДНОЙ грани')}
-
-for i in range(len(Len_data)):
-    col_conf.update({str(i+3): st.column_config.TextColumn(
-        label='L='+str(Len_data[i]), disabled=True, help='Эксцентриситет e=' + str(round(max(1.0, h/30, Len_data[i]/10/600),2))+'см')})
-    
-with st.expander('Результаты расчета огнестойкости'):
-    st.subheader('Допустимое вертикальное напряжение, тс/м$^2$')
-    st.dataframe(pd.DataFrame(rez1), hide_index=True, column_config=col_conf)
