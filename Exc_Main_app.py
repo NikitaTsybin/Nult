@@ -206,6 +206,6 @@ with st.expander('Справочная информация по огнесто�
     fig = plot_T(h, tau)
     plotconf = dict({'staticPlot':True})
     st.plotly_chart(fig, use_container_width=True)
-    st.write('Температура со стороны нагрева: ' + str(round(Ta(a/1000, tau, 28/1000))) + '   ' + str(round(Tb(a/1000, tau))))
+    #st.write('Температура со стороны нагрева: ' + str(round(Ta(a/1000, tau, 28/1000))) + '   ' + str(round(Tb(a/1000, tau))))
 
 
