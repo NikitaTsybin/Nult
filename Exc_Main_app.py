@@ -84,7 +84,7 @@ Reinf_data = []
 for i in Reinf_string_list:
     Reinf_data.append({'string': i, 'area_1': round(calc_string_area(i),3),
                        'area_2': round(2*calc_string_area(i),3),
-                       'mu': round(2*calc_string_area(i)/(h*b-2*calc_string_area(i))*100,3)})
+                       'mu': round(2*calc_string_area(i)/(h*b-0*calc_string_area(i))*100,3)})
 Reinf_data = pd.DataFrame(Reinf_data)
 ##st.data_editor(Reinf_data)
 
